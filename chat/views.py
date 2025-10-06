@@ -505,12 +505,40 @@ def issue_create(request):
             messages.success(request, 'Issue created successfully')
             return redirect('issue_create')
 
+    # elif request.POST.get('action') == 'delete':
+    #     issue_id = request.POST.get('id')
+    #     if issue_id:
+    #         try:
+    #             issue = Issue.objects.get(id=issue_id, created_by=request.user)
+    #             issue.delete()
+    #             messages.success(request, 'Issue deleted successfully.')
+    #             return redirect('issue_create')
+    #         except Issue.DoesNotExist:
+    #             messages.error(request, 'Issue not found or you do not have permission to delete it.')
     elif request.POST.get('action') == 'delete':
         issue_id = request.POST.get('id')
         if issue_id:
             try:
                 issue = Issue.objects.get(id=issue_id, created_by=request.user)
+                
+                # Save assigned user for broadcasting
+                assigned_user = issue.assigned_to
+                
+                # Delete the issue
                 issue.delete()
+                
+                # Broadcast deletion to assigned user via WS
+                if assigned_user:
+                    channel_layer = get_channel_layer()
+                    async_to_sync(channel_layer.group_send)(
+                        f"user_{assigned_user.id}_issues",
+                        {
+                            "type": "issue_update",
+                            "action": "delete",
+                            "issue_id": issue_id
+                        }
+                    )
+
                 messages.success(request, 'Issue deleted successfully.')
                 return redirect('issue_create')
             except Issue.DoesNotExist:

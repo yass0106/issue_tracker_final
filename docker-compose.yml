@@ -1,38 +1,33 @@
-version: '3.9'
+
 
 services:
   web:
     build: .
-    container_name: web
-    command: >
-      sh -c "python manage.py migrate &&
-             python manage.py collectstatic --noinput &&
-             daphne -b 0.0.0.0 -p 8000 issue_tracker.asgi:application"
-    volumes:
-      - .:/app
+    command: daphne -b 0.0.0.0 -p 8000 your_project_name.asgi:application
     ports:
       - "8000:8000"
     depends_on:
       - redis
-    environment:
-      - DJANGO_SETTINGS_MODULE=issue_tracker.settings
-      - REDIS_URL=redis://redis:6379/0
+    env_file:
+      - .env
+
+  celery:
+    build: .
+    command: celery -A your_project_name worker -l info
+    depends_on:
+      - redis
+    env_file:
+      - .env
+
+  celery-beat:
+    build: .
+    command: celery -A your_project_name beat -l info
+    depends_on:
+      - redis
+    env_file:
+      - .env
 
   redis:
     image: redis:7-alpine
-    container_name: redis
     ports:
       - "6379:6379"
-
-  worker:
-    build: .
-    container_name: worker
-    command: >
-      sh -c "python manage.py runworker --settings=issue_tracker.settings"
-    volumes:
-      - .:/app
-    depends_on:
-      - redis
-    environment:
-      - DJANGO_SETTINGS_MODULE=issue_tracker.settings
-      - REDIS_URL=redis://redis:6379/0

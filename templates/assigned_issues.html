@@ -122,36 +122,79 @@ const issuesBody = document.getElementById("issues-body");
 const issuesSocket = new WebSocket("ws://" + window.location.host + "/ws/assigned_issues/");
 
 // Handle incoming updates
+// issuesSocket.onmessage = function(e) {
+//     const data = JSON.parse(e.data);
+//     let row = document.getElementById(`issue-${data.issue_id}`);
+//     if(row) {
+//         row.querySelector(".status-select").value = data.status;
+//     } else {
+//         const tr = document.createElement("tr");
+//         tr.id = `issue-${data.issue_id}`;
+//         tr.classList.add("new-issue");
+//         tr.innerHTML = `
+//             <td>${data.title}</td>
+//             <td>${data.project_name}</td>
+//             <td>
+//                 <select class="status-select form-control form-control-sm" data-issue-id="${data.issue_id}">
+//                     ${["Open","In Progress","Closed"].map(s => `<option value="${s}" ${s===data.status?"selected":""}>${s}</option>`).join('')}
+//                 </select>
+//             </td>
+//             <td>${data.due_date || ''}</td>
+//             <td>${data.priority || ''}</td>
+//             <td>${data.attachment_url ? `<a href="${data.attachment_url}" target="_blank">Download</a>` : '-'}</td>
+//         `;
+//         issuesBody.prepend(tr);
+
+//         tr.querySelector(".status-select").addEventListener("change", e => {
+//             issuesSocket.send(JSON.stringify({
+//                 action: "update_status",
+//                 issue_id: e.target.dataset.issueId,
+//                 status: e.target.value
+//             }));
+//         });
+//     }
+// };
+
 issuesSocket.onmessage = function(e) {
     const data = JSON.parse(e.data);
     let row = document.getElementById(`issue-${data.issue_id}`);
-    if(row) {
-        row.querySelector(".status-select").value = data.status;
-    } else {
-        const tr = document.createElement("tr");
-        tr.id = `issue-${data.issue_id}`;
-        tr.classList.add("new-issue");
-        tr.innerHTML = `
-            <td>${data.title}</td>
-            <td>${data.project_name}</td>
-            <td>
-                <select class="status-select form-control form-control-sm" data-issue-id="${data.issue_id}">
-                    ${["Open","In Progress","Closed"].map(s => `<option value="${s}" ${s===data.status?"selected":""}>${s}</option>`).join('')}
-                </select>
-            </td>
-            <td>${data.due_date || ''}</td>
-            <td>${data.priority || ''}</td>
-            <td>${data.attachment_url ? `<a href="${data.attachment_url}" target="_blank">Download</a>` : '-'}</td>
-        `;
-        issuesBody.prepend(tr);
 
-        tr.querySelector(".status-select").addEventListener("change", e => {
-            issuesSocket.send(JSON.stringify({
-                action: "update_status",
-                issue_id: e.target.dataset.issueId,
-                status: e.target.value
-            }));
-        });
+    if(data.action === "update_status") {
+        // Existing status update
+        if(row) {
+            row.querySelector(".status-select").value = data.status;
+        }
+    } else if(data.action === "delete") {
+        // Handle deletion
+        if(row) row.remove();
+    } else {
+        // New issue received
+        if(!row) {
+            const tr = document.createElement("tr");
+            tr.id = `issue-${data.issue_id}`;
+            tr.classList.add("new-issue");
+            tr.innerHTML = `
+                <td>${data.title}</td>
+                <td>${data.project_name}</td>
+                <td>
+                    <select class="status-select form-control form-control-sm" data-issue-id="${data.issue_id}">
+                        ${["Open","In Progress","Closed"].map(s => `<option value="${s}" ${s===data.status?"selected":""}>${s}</option>`).join('')}
+                    </select>
+                </td>
+                <td>${data.due_date || ''}</td>
+                <td>${data.priority || ''}</td>
+                <td>${data.attachment_url ? `<a href="${data.attachment_url}" target="_blank">Download</a>` : '-'}</td>
+            `;
+            issuesBody.prepend(tr);
+
+            tr.querySelector(".status-select").addEventListener("change", e => {
+                issuesSocket.send(JSON.stringify({
+                    action: "update_status",
+                    issue_id: e.target.dataset.issueId,
+                    status: e.target.value
+                }));
+            });
+        }
     }
 };
 

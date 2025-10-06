@@ -1,0 +1,24 @@
+
+{% extends 'base.html' %}
+
+{% block title %}Home - JAI {% endblock %}
+
+{% block content %}
+<div class="jumbotron text-center">
+    <h1 class="display-4">Welcome to the Issue Tracking Application</h1>
+    <hr class="my-4">
+    {% if user.is_authenticated %}
+    <h2>Hello, {{ username }}!</h2>
+    <h4>Overdue Issues: {{ overdue_issues_count }}</h4>
+<ul>
+{% for issue in user_overdue_issues %}
+    <li>{{ issue.title }} - {{ issue.due_date|date:"Y-m-d" }}</li>
+{% empty %}
+    <li>No overdue issues.</li>
+{% endfor %}
+</ul>
+
+
+    {% endif %}
+</div>
+{% endblock %}

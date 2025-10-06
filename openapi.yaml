@@ -1,0 +1,201 @@
+openapi: 3.0.3
+info:
+  title: Project & Issue Management API
+  version: 1.0.0
+  description: API schema for organization, project, user, and issue management.
+servers:
+  - url: https://domain.com/api
+    description: Production server
+  - url: http://localhost:8000/api
+    description: Local development server
+
+paths:
+  /organizations/:
+    get:
+      summary: List organizations for the authenticated user
+      tags: [Organizations]
+      security:
+        - cookieAuth: []
+      responses:
+        "200":
+          description: List of organizations
+    post:
+      summary: Create/Edit/Delete organization
+      tags: [Organizations]
+      security:
+        - cookieAuth: []
+      requestBody:
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              properties:
+                action:
+                  type: string
+                  enum: [create, edit, delete]
+                org_id:
+                  type: integer
+                name:
+                  type: string
+              required: [action]
+      responses:
+        "200":
+          description: Organization action result
+
+  /projects/:
+    get:
+      summary: List all projects accessible by the authenticated user
+      tags: [Projects]
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: page
+          in: query
+          schema: { type: integer }
+        - name: per_page
+          in: query
+          schema: { type: integer }
+      responses:
+        "200":
+          description: Paginated list of projects
+    post:
+      summary: Create/Edit/Delete a project
+      tags: [Projects]
+      security:
+        - cookieAuth: []
+      requestBody:
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              properties:
+                action:
+                  type: string
+                  enum: [create, edit, delete]
+                project_id:
+                  type: integer
+                name:
+                  type: string
+                org_id:
+                  type: integer
+              required: [action]
+      responses:
+        "200":
+          description: Project action result
+
+  /users/manage/:
+    get:
+      summary: View users and roles per organization
+      tags: [User Management]
+      security:
+        - cookieAuth: []
+      responses:
+        "200":
+          description: List of users by organization
+    post:
+      summary: Create a new user within an organization
+      tags: [User Management]
+      security:
+        - cookieAuth: []
+      requestBody:
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              properties:
+                username: { type: string }
+                password: { type: string, format: password }
+                email: { type: string, format: email }
+                org_id: { type: integer }
+                role: { type: string, enum: [Owner, Manager, Member] }
+              required: [username, password, email, org_id, role]
+      responses:
+        "200":
+          description: User created successfully
+
+  /issues/:
+    get:
+      summary: List issues created by the user
+      tags: [Issues]
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: status
+          in: query
+          schema: { type: string, enum: [Open, In Progress, Closed] }
+        - name: priority
+          in: query
+          schema: { type: string, enum: [Low, Medium, High] }
+        - name: due_date
+          in: query
+          schema: { type: string, format: date }
+      responses:
+        "200":
+          description: Paginated issue list
+    post:
+      summary: Create or delete an issue
+      tags: [Issues]
+      security:
+        - cookieAuth: []
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                action: { type: string, enum: [create, delete] }
+                id: { type: integer, description: Issue ID (for delete) }
+                title: { type: string }
+                description: { type: string }
+                project: { type: integer }
+                assigned_to: { type: integer }
+                due_date: { type: string, format: date }
+                attachment: { type: string, format: binary }
+              required: [action]
+      responses:
+        "200":
+          description: Issue created or deleted
+
+  /issues/assigned/:
+    get:
+      summary: View issues assigned to the authenticated user
+      tags: [Issues]
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: status
+          in: query
+          schema: { type: string }
+        - name: priority
+          in: query
+          schema: { type: string }
+        - name: due_date
+          in: query
+          schema: { type: string, format: date }
+      responses:
+        "200":
+          description: List of assigned issues
+    post:
+      summary: Update issue status
+      tags: [Issues]
+      security:
+        - cookieAuth: []
+      requestBody:
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              properties:
+                issue_id: { type: integer }
+                status: { type: string, enum: [Open, In Progress, Closed] }
+              required: [issue_id, status]
+      responses:
+        "200":
+          description: Issue status updated
+
+components:
+  securitySchemes:
+    cookieAuth:
+      type: apiKey
+      in: cookie
+      name: sessionid

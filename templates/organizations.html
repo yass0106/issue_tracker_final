@@ -1,0 +1,66 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block content %}
+<div class="container mt-5">
+    <h2 class="mb-4">Your Organizations</h2>
+
+    <!-- Create / Edit Form -->
+    <div class="card mb-4 shadow-sm">
+        <div class="card-body">
+            <h5 class="card-title">{% if edit_org %}Edit Organization{% else %}Create Organization{% endif %}</h5>
+            <form method="post" class="form-inline">
+                {% csrf_token %}
+                <input type="hidden" name="org_id" value="{{ edit_org.id|default:'' }}">
+                
+                <div class="form-group mb-2 mr-2 flex-grow-1">
+                    <input type="text" name="name" value="{{ edit_org.name|default:'' }}" placeholder="Organization Name" class="form-control w-100" required>
+                </div>
+                
+                <button type="submit" name="action" value="{% if edit_org %}edit{% else %}create{% endif %}" class="btn {% if edit_org %}btn-warning{% else %}btn-primary{% endif %} mb-2">
+                    {% if edit_org %}Update{% else %}Create{% endif %}
+                </button>
+
+                {% if edit_org %}
+                    <a href="{% url 'organization_list' %}" class="btn btn-secondary mb-2 ml-2">Cancel</a>
+                {% endif %}
+            </form>
+        </div>
+    </div>
+
+    <!-- Organization List -->
+    <div class="card shadow-sm">
+        <div class="card-body">
+            <h5 class="card-title mb-3">Organization List</h5>
+            <div class="table-responsive">
+                <table class="table table-bordered table-hover">
+                    <thead class="thead-light">
+                        <tr>
+                            <th>Name</th>
+                            <th style="width: 180px;">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for org in organizations %}
+                        <tr>
+                            <td>{{ org.name }}</td>
+                            <td>
+                                <a href="?edit={{ org.id }}" class="btn btn-sm btn-warning">Edit</a>
+                                <form method="post" style="display:inline;">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="org_id" value="{{ org.id }}">
+                                    <button type="submit" name="action" value="delete" class="btn btn-sm btn-danger">Delete</button>
+                                </form>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="2" class="text-center">No organizations found.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,197 @@
+{% extends 'base.html' %}
+{% block title %}Assigned Issues{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <h2 class="mb-4">Assigned Issues</h2>
+
+    <!-- Messages -->
+    {% if messages %}
+        {% for message in messages %}
+            <div class="alert alert-{{ message.tags }}">{{ message }}</div>
+        {% endfor %}
+    {% endif %}
+
+    <!-- Filter Form -->
+    <form method="get" class="row g-2 mb-4">
+        <div class="col-md-3">
+            <select name="status" class="form-control">
+                <option value="">All Statuses</option>
+                {% for s in statuses %}
+                    <option value="{{ s }}" {% if status_filter == s %}selected{% endif %}>{{ s }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-md-3">
+            <select name="priority" class="form-control">
+                <option value="">All Priorities</option>
+                {% for p in priorities %}
+                    <option value="{{ p }}" {% if priority_filter == p %}selected{% endif %}>{{ p }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-md-3">
+            <input type="date" name="due_date" value="{{ due_date_filter }}" class="form-control">
+        </div>
+        <div class="col-md-3">
+            <button type="submit" class="btn btn-primary w-100">Filter</button>
+        </div>
+    </form>
+
+    <!-- Issues Table -->
+    <div class="table-responsive" style="max-height:600px; overflow-y:auto;">
+        <table class="table table-bordered table-hover">
+            <thead class="thead-light">
+                <tr>
+                    <th>Title</th>
+                    <th>Project</th>
+                    <th>Status</th>
+                    <th>Due Date</th>
+                    <th>Priority</th>
+                    <th>Attachment</th>
+                </tr>
+            </thead>
+            <tbody id="issues-body">
+                {% for issue in page_obj %}
+                <tr id="issue-{{ issue.id }}">
+                    <td>{{ issue.title }}</td>
+                    <td>{{ issue.project.name }}</td>
+                    <td>
+                        <select class="status-select form-control form-control-sm" data-issue-id="{{ issue.id }}">
+                            {% for s in statuses %}
+                                <option value="{{ s }}" {% if issue.status == s %}selected{% endif %}>{{ s }}</option>
+                            {% endfor %}
+                        </select>
+                    </td>
+                    <td>{% if issue.due_date %}{{ issue.due_date|date:"Y-m-d" }}{% else %}-{% endif %}</td>
+                    <td>{{ issue.priority }}</td>
+                    <td>
+                        {% if issue.attachment %}
+                            <a href="{{ issue.attachment.url }}" target="_blank">see</a>
+                        {% else %}
+                            -
+                        {% endif %}
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="6" class="text-center">No assigned issues found.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Pagination -->
+    <nav aria-label="Page navigation">
+        <ul class="pagination justify-content-center">
+            {% if page_obj.has_previous %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ page_obj.previous_page_number }}&status={{ status_filter }}&priority={{ priority_filter }}&due_date={{ due_date_filter }}">Previous</a>
+                </li>
+            {% else %}
+                <li class="page-item disabled"><span class="page-link">Previous</span></li>
+            {% endif %}
+
+            <li class="page-item disabled"><span class="page-link">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span></li>
+
+            {% if page_obj.has_next %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ page_obj.next_page_number }}&status={{ status_filter }}&priority={{ priority_filter }}&due_date={{ due_date_filter }}">Next</a>
+                </li>
+            {% else %}
+                <li class="page-item disabled"><span class="page-link">Next</span></li>
+            {% endif %}
+        </ul>
+    </nav>
+</div>
+
+<!-- Styles -->
+<style>
+    .new-issue { 
+        background-color: #d4edda; 
+        animation: fadeIn 0.5s;
+    }
+    .status-select { width: 150px; }
+    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+</style>
+
+<!-- WebSocket for live status updates -->
+<script>
+const issuesBody = document.getElementById("issues-body");
+const issuesSocket = new WebSocket("ws://" + window.location.host + "/ws/assigned_issues/");
+
+// Handle incoming updates
+issuesSocket.onmessage = function(e) {
+    const data = JSON.parse(e.data);
+    let row = document.getElementById(`issue-${data.issue_id}`);
+    if(row) {
+        row.querySelector(".status-select").value = data.status;
+    } else {
+        const tr = document.createElement("tr");
+        tr.id = `issue-${data.issue_id}`;
+        tr.classList.add("new-issue");
+        tr.innerHTML = `
+            <td>${data.title}</td>
+            <td>${data.project_name}</td>
+            <td>
+                <select class="status-select form-control form-control-sm" data-issue-id="${data.issue_id}">
+                    ${["Open","In Progress","Closed"].map(s => `<option value="${s}" ${s===data.status?"selected":""}>${s}</option>`).join('')}
+                </select>
+            </td>
+            <td>${data.due_date || ''}</td>
+            <td>${data.priority || ''}</td>
+            <td>${data.attachment_url ? `<a href="${data.attachment_url}" target="_blank">Download</a>` : '-'}</td>
+        `;
+        issuesBody.prepend(tr);
+
+        tr.querySelector(".status-select").addEventListener("change", e => {
+            issuesSocket.send(JSON.stringify({
+                action: "update_status",
+                issue_id: e.target.dataset.issueId,
+                status: e.target.value
+            }));
+        });
+    }
+};
+
+// Bind status change for existing rows
+document.querySelectorAll(".status-select").forEach(select => {
+    select.addEventListener("change", e => {
+        issuesSocket.send(JSON.stringify({
+            action: "update_status",
+            issue_id: e.target.dataset.issueId,
+            status: e.target.value
+        }));
+    });
+});
+</script>
+<script>
+    const wsProtocol = window.location.protocol === "https:" ? "wss" : "ws";
+    const socket = new WebSocket(`${wsProtocol}://${window.location.host}/ws/assigned_issues/`);
+
+    socket.onmessage = function(e) {
+        const data = JSON.parse(e.data);
+        console.log("Received issue update:", data);
+
+        const row = document.querySelector(`#issue-row-${data.issue_id}`);
+        if (row) {
+            // Update status cell
+            const statusCell = row.querySelector('.status-cell');
+            if (statusCell) statusCell.textContent = data.status;
+
+            // Highlight overdue issues
+            row.classList.remove('table-danger');
+            const dueDate = data.due_date ? new Date(data.due_date) : null;
+            const now = new Date();
+            if (dueDate && dueDate < now && data.status !== 'Closed') {
+                row.classList.add('table-danger');
+            }
+        }
+    };
+
+    socket.onopen = function() { console.log("WebSocket connected"); };
+    socket.onclose = function() { console.log("WebSocket disconnected"); };
+</script>
+
+{% endblock %}

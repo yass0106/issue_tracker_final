@@ -1,0 +1,84 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="container mt-5">
+    <h2 class="mb-4">User Management</h2>
+
+    <!-- Display messages -->
+    {% if messages %}
+        <div class="mb-3">
+            {% for message in messages %}
+                <div class="alert alert-{{ message.tags }}">{{ message }}</div>
+            {% endfor %}
+        </div>
+    {% endif %}
+
+    <!-- Add New User Form -->
+    <div class="card mb-4 shadow-sm">
+        <div class="card-body">
+            <h5 class="card-title mb-3">Add New User</h5>
+            <form method="post" class="row g-3">
+                {% csrf_token %}
+                <div class="col-md-4">
+                    <input type="text" name="username" placeholder="Username" class="form-control" required>
+                </div>
+                <div class="col-md-4">
+                    <input type="password" name="password" placeholder="Password" class="form-control" required>
+                </div>
+                <div class="col-md-4">
+                    <input type="email" name="email" placeholder="Email" class="form-control" required>
+                </div>
+                <div class="col-md-4">
+                    <select name="org_id" class="form-control" required>
+                        <option value="">Select Organization</option>
+                        {% for uo in organizations %}
+                            <option value="{{ uo.organization.id }}">{{ uo.organization.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <select name="role" class="form-control">
+                        {% for role in roles %}
+                            <option value="{{ role }}">{{ role }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-4 d-flex align-items-end">
+                    <button type="submit" class="btn btn-primary w-100">Create User</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Existing Users -->
+    <div class="card shadow-sm mb-5">
+        <div class="card-body">
+            <h5 class="card-title mb-3">Existing Users</h5>
+            {% for org in org_data %}
+                <h6 class="mt-4">{{ org.org_name }}</h6>
+                <div class="table-responsive">
+                    <table class="table table-bordered table-hover">
+                        <thead class="thead-light">
+                            <tr>
+                                <th>Role</th>
+                                <th>Users</th>
+                                <th>Count</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for role_info in org.roles_list %}
+                                <tr>
+                                    <td>{{ role_info.role }}</td>
+                                    <td>{{ role_info.users|join:", " }}</td>
+                                    <td>{{ role_info.count }}</td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% empty %}
+                <p class="text-center">No users found in your organizations.</p>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% endblock %}
